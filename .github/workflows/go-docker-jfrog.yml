@@ -1,16 +1,19 @@
-name: Push to JFrog
+name: Golang CI Pipeline
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  deploy:
+  build-and-publish:
     runs-on: ubuntu-latest
-    env:   # 👈 Here we load the environment variables
+
+    env:
+      IMAGE_NAME: myapp
+      IMAGE_TAG: 1.0
       JFROG_URL: ${{ secrets.JFROG_URL }}
-      JFROG_DOCKER_REPO: ${{ secrets.JFROG_DOCKER_REPO }}
-      JFROG_GENERIC_REPO: ${{ secrets.JFROG_GENERIC_REPO }}
+      JFROG_DOCKER_REPO: ${{ secrets.JFROG_DOCKER_REPO }}     # e.g. docker-local
+      JFROG_GENERIC_REPO: ${{ secrets.JFROG_GENERIC_REPO }}   # e.g. golang-artifacts-local
       JFROG_USER: ${{ secrets.JFROG_USER }}
       JFROG_PASSWORD: ${{ secrets.JFROG_API_KEY }}
 
@@ -18,18 +21,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Login to JFrog Docker
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Build Go binary
+        run: |
+          go mod tidy
+          go build -o myapp hello.go
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${JFROG_URL}/${JFROG_DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG} .
+
+      - name: Log in to JFrog Docker registry
         run: |
           echo "${JFROG_PASSWORD}" | docker login ${JFROG_URL} \
-            --username "${JFROG_USER}" --password-stdin
+          --username "${JFROG_USER}" --password-stdin
 
-      - name: Build & Push Docker Image
+      - name: Push Docker image to JFrog
         run: |
-          docker build -t ${JFROG_URL}/${JFROG_DOCKER_REPO}/myapp:1.0 .
-          docker push ${JFROG_URL}/${JFROG_DOCKER_REPO}/myapp:1.0
+          docker push ${JFROG_URL}/${JFROG_DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
 
-      - name: Upload Generic Artifact
+      - name: Upload raw binary to JFrog Generic repo
         run: |
           curl -u "${JFROG_USER}:${JFROG_PASSWORD}" \
-            -T target/myapp-1.0.tar.gz \
-            "${JFROG_URL}/artifactory/${JFROG_GENERIC_REPO}/myapp-1.0.tar.gz"
+          -T ./myapp \
+          "${JFROG_URL}/artifactory/${JFROG_GENERIC_REPO}/myapp-${IMAGE_TAG}"
