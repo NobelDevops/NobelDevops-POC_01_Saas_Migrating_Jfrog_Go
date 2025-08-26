@@ -26,8 +26,8 @@ jobs:
       run: |
         JFROG_REGISTRY="${{ secrets.JFROG_REGISTRY }}"
         JFROG_USERNAME="${{ secrets.JFROG_USERNAME }}"
-        JFROG_API_KEY="${{ secrets.JFROG_API_KEY }}"
-        echo "$JFROG_API_KEY" | docker login "$JFROG_REGISTRY" \
+        JFROG_IDENTITY_TOKEN="${{ secrets.JFROG_IDENTITY_TOKEN }}"
+        echo "$JFROG_IDENTITY_TOKEN" | docker login "$JFROG_REGISTRY" \
           --username "$JFROG_USERNAME" --password-stdin
 
     - name: Build Docker image
@@ -51,7 +51,7 @@ jobs:
         ARTIFACTORY_URL="${{ secrets.JFROG_URL }}"
         GENERIC_REPO="${{ secrets.JFROG_GENERIC_REPO }}"
         JFROG_USERNAME="${{ secrets.JFROG_USERNAME }}"
-        JFROG_API_KEY="${{ secrets.JFROG_API_KEY }}"
-        curl -u "$JFROG_USERNAME:$JFROG_API_KEY" \
+        JFROG_IDENTITY_TOKEN="${{ secrets.JFROG_IDENTITY_TOKEN }}"
+        curl -u "$JFROG_USERNAME:$JFROG_IDENTITY_TOKEN" \
           -T ./myapp \
           "$ARTIFACTORY_URL/$GENERIC_REPO/myapp"
