@@ -8,13 +8,6 @@ jobs:
   build-and-publish:
     runs-on: ubuntu-latest
 
-    env:
-      IMAGE_NAME: myapp
-      IMAGE_TAG: 1.0
-      JFROG_REGISTRY: ${{ secrets.JFROG_REGISTRY }}  # e.g. trial-j4m0t55.jfrog.io
-      DOCKER_REPO: docker-local
-      ARTIFACTORY_URL: ${{ secrets.JFROG_URL }}      # e.g. https://trial-j4m0t55.jfrog.io/artifactory
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -31,19 +24,29 @@ jobs:
 
     - name: Build Docker image
       run: |
+        JFROG_REGISTRY="${{ secrets.JFROG_REGISTRY }}"
+        IMAGE_NAME="myapp"
+        IMAGE_TAG="1.0"
+        DOCKER_REPO="docker-local"
         docker build -t $JFROG_REGISTRY/$DOCKER_REPO/$IMAGE_NAME:$IMAGE_TAG .
 
     - name: Log in to JFrog Docker registry
       run: |
-        echo ${{ secrets.JFROG_API_KEY }} | docker login $JFROG_REGISTRY \
-        --username ${{ secrets.JFROG_USERNAME }} --password-stdin
+        JFROG_REGISTRY="${{ secrets.JFROG_REGISTRY }}"
+        echo "${{ secrets.JFROG_API_KEY }}" | docker login $JFROG_REGISTRY \
+        --username "${{ secrets.JFROG_USERNAME }}" --password-stdin
 
     - name: Push Docker image to JFrog
       run: |
+        JFROG_REGISTRY="${{ secrets.JFROG_REGISTRY }}"
+        IMAGE_NAME="myapp"
+        IMAGE_TAG="1.0"
+        DOCKER_REPO="docker-local"
         docker push $JFROG_REGISTRY/$DOCKER_REPO/$IMAGE_NAME:$IMAGE_TAG
 
     - name: Upload raw binary to JFrog Generic repo
       run: |
-        curl -u ${{ secrets.JFROG_USERNAME }}:${{ secrets.JFROG_API_KEY }} \
+        ARTIFACTORY_URL="${{ secrets.JFROG_URL }}"
+        curl -u "${{ secrets.JFROG_USERNAME }}:${{ secrets.JFROG_API_KEY }}" \
         -T ./myapp \
         "$ARTIFACTORY_URL/golang-artifacts-local/myapp"
