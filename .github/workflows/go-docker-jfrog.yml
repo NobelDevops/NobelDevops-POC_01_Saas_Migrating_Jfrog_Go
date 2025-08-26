@@ -6,13 +6,14 @@ on:
 
 jobs:
   build-and-publish:
-    runs-on: ubuntu-latest  # Or 'ubuntu-latest' if not using self-hosted
+    runs-on: ubuntu-latest
 
     env:
       IMAGE_NAME: myapp
       IMAGE_TAG: 1.0
-      ARTIFACTORY_URL: ${{ secrets.JFROG_URL }}
-      DOCKER_REPO: docker-local  # Replace with your actual Docker repo name
+      JFROG_REGISTRY: ${{ secrets.JFROG_REGISTRY }}  # e.g. trial-j4m0t55.jfrog.io
+      DOCKER_REPO: docker-local
+      ARTIFACTORY_URL: ${{ secrets.JFROG_URL }}      # e.g. https://trial-j4m0t55.jfrog.io/artifactory
 
     steps:
     - name: Checkout code
@@ -30,16 +31,16 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker build -t $ARTIFACTORY_URL/$DOCKER_REPO/$IMAGE_NAME:$IMAGE_TAG .
+        docker build -t $JFROG_REGISTRY/$DOCKER_REPO/$IMAGE_NAME:$IMAGE_TAG .
 
     - name: Log in to JFrog Docker registry
       run: |
-        echo ${{ secrets.JFROG_API_KEY }} | docker login $ARTIFACTORY_URL \
+        echo ${{ secrets.JFROG_API_KEY }} | docker login $JFROG_REGISTRY \
         --username ${{ secrets.JFROG_USERNAME }} --password-stdin
 
     - name: Push Docker image to JFrog
       run: |
-        docker push $ARTIFACTORY_URL/$DOCKER_REPO/$IMAGE_NAME:$IMAGE_TAG
+        docker push $JFROG_REGISTRY/$DOCKER_REPO/$IMAGE_NAME:$IMAGE_TAG
 
     - name: Upload raw binary to JFrog Generic repo
       run: |
