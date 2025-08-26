@@ -24,23 +24,34 @@ jobs:
 
     - name: Log in to JFrog Docker registry
       run: |
-        echo "${{ secrets.JFROG_API_KEY }}" | docker login ${{ secrets.JFROG_REGISTRY }} \
-          --username "${{ secrets.JFROG_USERNAME }}" --password-stdin
+        JFROG_REGISTRY="${{ secrets.JFROG_REGISTRY }}"
+        JFROG_USERNAME="${{ secrets.JFROG_USERNAME }}"
+        JFROG_API_KEY="${{ secrets.JFROG_API_KEY }}"
+        echo "$JFROG_API_KEY" | docker login "$JFROG_REGISTRY" \
+          --username "$JFROG_USERNAME" --password-stdin
 
     - name: Build Docker image
       run: |
+        JFROG_REGISTRY="${{ secrets.JFROG_REGISTRY }}"
+        DOCKER_REPO="${{ secrets.JFROG_DOCKER_REPO }}"
         IMAGE_NAME="myapp"
         IMAGE_TAG="1.0"
-        docker build -t ${{ secrets.JFROG_REGISTRY }}/${{ secrets.JFROG_DOCKER_REPO }}/$IMAGE_NAME:$IMAGE_TAG .
+        docker build -t "$JFROG_REGISTRY/$DOCKER_REPO/$IMAGE_NAME:$IMAGE_TAG" .
 
     - name: Push Docker image to JFrog
       run: |
+        JFROG_REGISTRY="${{ secrets.JFROG_REGISTRY }}"
+        DOCKER_REPO="${{ secrets.JFROG_DOCKER_REPO }}"
         IMAGE_NAME="myapp"
         IMAGE_TAG="1.0"
-        docker push ${{ secrets.JFROG_REGISTRY }}/${{ secrets.JFROG_DOCKER_REPO }}/$IMAGE_NAME:$IMAGE_TAG
+        docker push "$JFROG_REGISTRY/$DOCKER_REPO/$IMAGE_NAME:$IMAGE_TAG"
 
     - name: Upload raw binary to JFrog Generic repo
       run: |
-        curl -u "${{ secrets.JFROG_USERNAME }}:${{ secrets.JFROG_API_KEY }}" \
+        ARTIFACTORY_URL="${{ secrets.JFROG_URL }}"
+        GENERIC_REPO="${{ secrets.JFROG_GENERIC_REPO }}"
+        JFROG_USERNAME="${{ secrets.JFROG_USERNAME }}"
+        JFROG_API_KEY="${{ secrets.JFROG_API_KEY }}"
+        curl -u "$JFROG_USERNAME:$JFROG_API_KEY" \
           -T ./myapp \
-          "${{ secrets.JFROG_URL }}/${{ secrets.JFROG_GENERIC_REPO }}/myapp"
+          "$ARTIFACTORY_URL/$GENERIC_REPO/myapp"
