@@ -1,44 +1,53 @@
-name: Push to JFrog
+name: Golang CI Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
 
 jobs:
-  deploy:
+  build-and-publish:
     runs-on: ubuntu-latest
 
-    env:
-      # JFrog settings
-      JFROG_HOST: ${{ secrets.JFROG_HOST }}           # e.g. trial4j0m55.jfrog.io
-      JFROG_URL: ${{ secrets.JFROG_URL }}             # e.g. https://trial4j0m55.jfrog.io/artifactory
-      JFROG_DOCKER_REPO: ${{ secrets.JFROG_DOCKER_REPO }}   # e.g. docker-local
-      JFROG_GENERIC_REPO: ${{ secrets.JFROG_GENERIC_REPO }} # e.g. golang-artifacts-local
-      JFROG_USER: ${{ secrets.JFROG_USER }}
-      JFROG_PASSWORD: ${{ secrets.JFROG_API_KEY }}
-
-      # Image info
-      IMAGE_NAME: myapp
-      IMAGE_TAG: 1.0
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Login to JFrog Docker
-        run: |
-          echo "${JFROG_PASSWORD}" | docker login ${JFROG_HOST} \
-            --username "${JFROG_USER}" --password-stdin
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
 
-      - name: Build & Push Docker Image
-        run: |
-          echo "👉 Building Docker image: ${JFROG_HOST}/${JFROG_DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
-          docker build -t ${JFROG_HOST}/${JFROG_DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG} .
-          docker push ${JFROG_HOST}/${JFROG_DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
+    - name: Build Go binary
+      run: |
+        go mod tidy
+        go build -o myapp hello.go
 
-      - name: Upload Generic Artifact
-        run: |
-          echo "👉 Uploading artifact to ${JFROG_URL}/${JFROG_GENERIC_REPO}/${IMAGE_NAME}-${IMAGE_TAG}.tar.gz"
-          curl -u "${JFROG_USER}:${JFROG_PASSWORD}" \
-            -T target/${IMAGE_NAME}-${IMAGE_TAG}.tar.gz \
-            "${JFROG_URL}/${JFROG_GENERIC_REPO}/${IMAGE_NAME}-${IMAGE_TAG}.tar.gz"
+    - name: Build Docker image
+      run: |
+        JFROG_REGISTRY="${{ secrets.JFROG_REGISTRY }}"   # e.g. trial4j0m55.jfrog.io
+        DOCKER_REPO="${{ secrets.JFROG_DOCKER_REPO }}"   # e.g. docker-local
+        IMAGE_NAME="myapp"
+        IMAGE_TAG="1.0"
+        docker build -t $JFROG_REGISTRY/$DOCKER_REPO/$IMAGE_NAME:$IMAGE_TAG .
+
+    - name: Log in to JFrog Docker registry
+      run: |
+        JFROG_REGISTRY="${{ secrets.JFROG_REGISTRY }}"
+        echo "${{ secrets.JFROG_API_KEY }}" | docker login $JFROG_REGISTRY \
+          --username "${{ secrets.JFROG_USERNAME }}" --password-stdin
+
+    - name: Push Docker image to JFrog
+      run: |
+        JFROG_REGISTRY="${{ secrets.JFROG_REGISTRY }}"
+        DOCKER_REPO="${{ secrets.JFROG_DOCKER_REPO }}"
+        IMAGE_NAME="myapp"
+        IMAGE_TAG="1.0"
+        docker push $JFROG_REGISTRY/$DOCKER_REPO/$IMAGE_NAME:$IMAGE_TAG
+
+    - name: Upload raw binary to JFrog Generic repo
+      run: |
+        ARTIFACTORY_URL="${{ secrets.JFROG_URL }}"       # e.g. https://trial4j0m55.jfrog.io/artifactory
+        GENERIC_REPO="${{ secrets.JFROG_GENERIC_REPO }}" # e.g. golang-artifacts-local
+        curl -u "${{ secrets.JFROG_USERNAME }}:${{ secrets.JFROG_API_KEY }}" \
+          -T ./myapp \
+          "$ARTIFACTORY_URL/$GENERIC_REPO/myapp"
